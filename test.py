@@ -133,7 +133,7 @@ if __name__ == "__main__":
     train_file = os.path.join(data_dir, '2018-E-c-En-train.txt')
     dev_file = os.path.join(data_dir, '2018-E-c-En-dev.txt')
 
-    VOCAB_SIZE = 10000
+    VOCAB_SIZE = 100000
     MAX_LEN = 100
     BATCH_SIZE = 32
     EMBEDDING_SIZE = 20
