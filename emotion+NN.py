@@ -3,12 +3,10 @@
 # usr/bin/python3
 """
 Todo:
-Read in Data into Pandas Dataframe
-create network for only 1 emotion based on previous tasks
-K fold prediction?
 understand multiclass neural network
 11 classification networks?
-nltk tweet tokenizer
+outputs von em netzen als aux input für multiclass netz
+emoji only als aux input für em netze
 """
 
 import os
