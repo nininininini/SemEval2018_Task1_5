@@ -134,7 +134,7 @@ class emotionNN:
         print("F1: {}\nPrecision: {}\nRecall: {}\nCompletely correct: {}".format(f1, precision, recall, all_correct))
 
 
-def create_cnn_model(emotion):
+def create_cnn_model(emotion='all'):
     cnn_model = Sequential()
     cnn_model.add(Embedding(VOCAB_SIZE, EMBEDDING_SIZE))
     cnn_model.add(Conv1D(2 * HIDDEN_SIZE, kernel_size=3, activation='relu', strides=1, padding='valid'))
@@ -173,14 +173,19 @@ for emotion in EMOTIONS:
     eModel = create_cnn_model(emotion)
     eNN = emotionNN(trainDF, devDF, eModel, emotion)
     eNN.run()
-    predictions = eNN.model.predict(x_dev)
-    print(predictions[:5])
+    predictions = eNN.model.predict(x_train)
+    trainDF[emotion+"_pred"] = predictions
 
-# y_train = np.array([trainDF['all']])[0]
-# y_dev = np.array([devDF['all']])[0]
-# #
-# multiClassNN = emotionNN(trainDF, devDF, 'all', create_cnn_model())
-# score, acc = multiClassNN.run(verbose=2)
-# print("\nScore: {}, Accuracy: {}".format(score, acc))
-#
-# multiClassNN.predict(trainDF)
+trainDF['all_pred'] = trainDF.iloc[:, -11:].values.tolist()
+
+
+
+y_train = np.array([trainDF['all']])[0]
+y_dev = np.array([devDF['all']])[0]
+
+model = create_cnn_model()
+multiClassNN = emotionNN(trainDF, devDF, model)
+score, acc = multiClassNN.run(verbose=2)
+print("\nScore: {}, Accuracy: {}".format(score, acc))
+
+multiClassNN.predict(trainDF)
