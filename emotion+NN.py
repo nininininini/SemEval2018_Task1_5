@@ -18,11 +18,8 @@ Ideas:
 """
 
 import os
-# import keras
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import KFold
-from timeit import timeit
 from nltk.tokenize import TweetTokenizer
 from collections import Counter
 
@@ -206,8 +203,7 @@ trainDF, devDF, testDF = read_data(train_file, dev_file)
 #
 #
 
-y_train = np.array([trainDF['all']])[0]
-y_dev = np.array([devDF['all']])[0]
+
 
 # model = create_cnn_model()
 
