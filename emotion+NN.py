@@ -7,6 +7,14 @@ understand multiclass neural network
 11 classification networks?
 outputs von em netzen als aux input für multiclass netz
 emoji only als aux input für em netze
+
+FRAGEN:
+Wie Ergebnisse auswerten?
+Neuronales Netz sagt für jeden INput gleiche Werte voraus
+Ideas:
+    Word normalization
+    Emoji aux input
+    train NN for each emotion
 """
 
 import os
@@ -23,6 +31,8 @@ from keras.models import Sequential
 from keras.layers import Dense, Embedding, LSTM, Bidirectional, Dropout, Activation
 from keras.optimizers import SGD
 from keras.layers import Conv1D, GlobalMaxPooling1D
+from keras import regularizers, initializers
+from time import time
 
 
 def create_dictionary(texts, vocab_size):
@@ -53,22 +63,21 @@ def to_ids(words, dictionary):
 def read_data(train_file, dev_file):
     tokenizer = TweetTokenizer()
     trainDF = pd.read_csv(train_file, sep='\t')
-    trainDF = trainDF.reindex(np.random.permutation(trainDF.index))
-    trainDF.insert(1, 'tweet_tokenized', (trainDF['Tweet'].apply(lambda x: tokenizer.tokenize(x))))
-
     devDF = pd.read_csv(dev_file, sep='\t')
-    devDF = devDF.reindex(np.random.permutation(devDF.index))
-    devDF.insert(1, 'tweet_tokenized', (devDF['Tweet'].apply(lambda x: tokenizer.tokenize(x))))
 
-    word2id = create_dictionary(trainDF["tweet_tokenized"], VOCAB_SIZE)
+    allDF = pd.concat([trainDF, devDF], ignore_index=True)
+    allDF = allDF.reindex(np.random.permutation(allDF.index))
+    allDF.insert(1, 'tweet_tokenized', (allDF['Tweet'].apply(lambda x: tokenizer.tokenize(x))))
 
-    trainDF.insert(1, 'tweet_ids', (trainDF['Tweet'].apply(lambda x: to_ids(x, dictionary=word2id))))
-    devDF.insert(1, 'tweet_ids', (devDF['Tweet'].apply(lambda x: to_ids(x, dictionary=word2id))))
+    word2id = create_dictionary(allDF["tweet_tokenized"], VOCAB_SIZE)
 
-    trainDF['all'] = trainDF.iloc[:, -11:].values.tolist()
-    devDF['all'] = devDF.iloc[:, -11:].values.tolist()
+    allDF.insert(1, 'tweet_ids', (allDF['Tweet'].apply(lambda x: to_ids(x, dictionary=word2id))))
 
-    return trainDF, devDF
+    allDF['all'] = allDF.iloc[:, -11:].values.tolist()
+    total = len(allDF)
+    trainend = int(total * 0.6)
+    devend = trainend + int(total * 0.2)
+    return allDF.iloc[:trainend, :], allDF.iloc[trainend:devend, :], allDF.iloc[devend:, :]
 
 
 class emotionNN:
@@ -107,21 +116,24 @@ class emotionNN:
     def predict(self, testDF):
         x_test = sequence.pad_sequences(np.array(testDF['tweet_ids']), maxlen=MAX_LEN)
         predictions = self.model.predict(x_test)
+        print(predictions)
         tp = 0
         fp = 0
         tn = 0
         fn = 0
         all_correct = 0
+        labels = list(testDF['all'])
         for i, pred in enumerate(predictions):
+            print(pred)
+            print(labels[i])
             for j, em in enumerate(pred):
-                tmp = tp + tn
-                if em >= 0.5:
-                    if testDF['all'][i][j] == 1:
+                if em >= 0.3:
+                    if labels[i][j] == 1:
                         tp += 1
                     else:
                         fp += 1
-                if em <= 0.5:
-                    if testDF['all'][i][j] == 1:
+                if em <= 0.3:
+                    if labels[i][j] == 1:
                         fn += 1
                     else:
                         tn += 1
@@ -147,45 +159,77 @@ def create_cnn_model(emotion='all'):
     return cnn_model
 
 
-data_dir = 'C:/Users/Oliver/PycharmProjects/SemEval2018_Task1_5/data/'
+start = time()
+data_dir = 'data/'
 train_file = os.path.join(data_dir, '2018-E-c-En-train.txt')
 dev_file = os.path.join(data_dir, '2018-E-c-En-dev.txt')
 
-VOCAB_SIZE = 10000
+VOCAB_SIZE = 100000
 MAX_LEN = 100
 BATCH_SIZE = 64
 EMBEDDING_SIZE = 20
 HIDDEN_SIZE = 10
-EPOCHS = 5  # Standard 10
+EPOCHS = 10  # Standard 10
 UNKNOWN_TOKEN = "<unk>"
 EMOTIONS = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'love',
             'optimism', 'pessimism', 'sadness', 'surprise', 'trust']
 
-trainDF, devDF = read_data(train_file, dev_file)
+trainDF, devDF, testDF = read_data(train_file, dev_file)
+# print(len(trainDF) + len(devDF) + len(testDF))
+# print("train__", len(trainDF))
+# print(trainDF[:1]["ID"])
+# print(trainDF[-1:]["ID"])
+# print()
+# print("dev__", len(devDF))
+# print(devDF[:1]["ID"])
+# print(devDF[-1:]["ID"])
+# print()
+# print("test__", len(testDF))
+# print(testDF[:1]["ID"])
+# print(testDF[-1:]["ID"])
 
-x_train = sequence.pad_sequences(np.array(trainDF['tweet_ids']), maxlen=MAX_LEN)
-x_dev = sequence.pad_sequences(np.array(devDF['tweet_ids']), maxlen=MAX_LEN)
-
-for emotion in EMOTIONS:
-    print("Running CNN for emotion: {}".format(emotion))
-    y_train = np.array(trainDF[emotion])
-    y_dev = np.array(devDF[emotion])
-    eModel = create_cnn_model(emotion)
-    eNN = emotionNN(trainDF, devDF, eModel, emotion)
-    eNN.run()
-    predictions = eNN.model.predict(x_train)
-    trainDF[emotion+"_pred"] = predictions
-
-trainDF['all_pred'] = trainDF.iloc[:, -11:].values.tolist()
-
-
+#
+# x_train = sequence.pad_sequences(np.array(trainDF['tweet_ids']), maxlen=MAX_LEN)
+# x_dev = sequence.pad_sequences(np.array(devDF['tweet_ids']), maxlen=MAX_LEN)
+#
+# for emotion in EMOTIONS:
+#     print("\nRunning CNN for emotion: {}".format(emotion))
+#     y_train = np.array(trainDF[emotion])
+#     y_dev = np.array(devDF[emotion])
+#     eModel = create_cnn_model(emotion)
+#     eNN = emotionNN(trainDF, devDF, eModel, emotion)
+#     eNN.run()
+#     predictions = eNN.model.predict(x_train)
+#     trainDF[emotion+"_pred"] = predictions
+#
+# trainDF['all_pred'] = trainDF.iloc[:, -11:].values.tolist()
+#
+#
 
 y_train = np.array([trainDF['all']])[0]
 y_dev = np.array([devDF['all']])[0]
 
-model = create_cnn_model()
-multiClassNN = emotionNN(trainDF, devDF, model)
+# model = create_cnn_model()
+
+cnn_model = Sequential()
+cnn_model.add(Embedding(VOCAB_SIZE, EMBEDDING_SIZE))
+cnn_model.add(Conv1D(2 * HIDDEN_SIZE,
+                     kernel_size=3,
+                     activation='tanh',
+                     strides=1,
+                     padding='valid',
+                     kernel_regularizer=regularizers.l1(0.001),))
+cnn_model.add(GlobalMaxPooling1D())
+cnn_model.add(Dense(HIDDEN_SIZE, activation='tanh'))
+cnn_model.add(Dense(HIDDEN_SIZE, activation='tanh'))
+cnn_model.add(Dense(HIDDEN_SIZE, activation='tanh'))
+cnn_model.add(Dense(y_train.shape[1], activation='sigmoid'))
+
+
+multiClassNN = emotionNN(trainDF, devDF, cnn_model)
 score, acc = multiClassNN.run(verbose=2)
+# multiClassNN.predict(testDF)
 print("\nScore: {}, Accuracy: {}".format(score, acc))
 
-multiClassNN.predict(trainDF)
+multiClassNN.predict(testDF)
+print("Runtime: {} seconds".format(time()-start))
