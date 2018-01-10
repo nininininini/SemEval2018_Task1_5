@@ -10,7 +10,6 @@ emoji only als aux input für em netze
 
 FRAGEN:
 Wie Ergebnisse auswerten?
-Neuronales Netz sagt für jeden INput gleiche Werte voraus
 Ideas:
     Word normalization
     Emoji aux input
