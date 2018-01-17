@@ -220,3 +220,16 @@ print("\nScore: {}, Accuracy: {}".format(score, acc))
 
 # multiClassNN.predict(trainDF)
 print("Runtime: {} seconds".format(time() - start))
+
+
+def compute_class_weights1(df):
+    class_weights = []
+    for idx, em in enumerate(EMOTIONS):
+        class_weights.append(df[em].value_counts()[1])
+    print(class_weights)
+    # class_weights = [np.exp(i) for i in class_weights]
+    sum_class_weights = sum(class_weights)
+    print(sum_class_weights)
+    class_weights = [(round((sum_class_weights - i) / sum_class_weights, 3))**2 for i in class_weights]
+    print(class_weights)
+    return {idx: class_weight for idx, class_weight in enumerate(class_weights)}
